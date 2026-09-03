@@ -1,26 +1,172 @@
-@import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@font-face {
+  font-family: 'SF Pro Custom';
+  src: url('/fonts/font1.otf') format('opentype');
+  font-weight: 100 900;
+  font-style: normal;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+@font-face {
+  font-family: 'Spotify Font 1';
+  src: url('/fonts/font1.otf') format('opentype');
+  font-weight: 900;
+  font-style: normal;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@font-face {
+  font-family: 'Spotify Font 2';
+  src: url('/fonts/font2.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f5f5f7;
+  color: #1d1d1f;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.app-container {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  font-family: 'SF Pro Custom', -apple-system, sans-serif;
+  overflow: hidden;
+  position: relative;
+  transition: background-color 0.4s ease;
+}
+
+.app-sidebar {
+  width: 400px;
+  flex-shrink: 0;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  overflow-y: auto;
+  transition: all 0.3s;
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+}
+
+.app-preview-section {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  z-index: 10;
+}
+
+.preview-scaler {
+  width: 500px;
+  height: 500px;
+  overflow: hidden;
+  transition: border-radius 0.3s;
+}
+
+@media (max-width: 900px) {
+  .app-container {
+    flex-direction: column-reverse;
+    height: 100dvh;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .app-sidebar {
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    padding: 24px 16px;
+    border-right: none !important;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  .app-preview-section {
+    width: 100%;
+    padding: 40px 0;
+    flex: none;
+    min-height: 400px;
+  }
+  .preview-scaler {
+    transform: scale(0.65);
+    transform-origin: center center;
+  }
+}
+
+@media (max-width: 400px) {
+  .preview-scaler {
+    transform: scale(0.55);
+  }
+}
+
+input[type="color"] {
+  -webkit-appearance: none;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  background: transparent;
+}
+input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+input[type="color"]::-webkit-color-swatch {
+  border: 1px solid rgba(128,128,128,0.3);
+  border-radius: 50%;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(142, 142, 147, 0.4);
+  border-radius: 4px;
+}
+
+input[type=range].apple-pro-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  outline: none;
+  transition: background 0.15s ease;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+}
+input[type=range].apple-pro-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 28px;
+  height: 16px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 0.5px solid rgba(0,0,0,0.04);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12), 0 1px 1px rgba(0,0,0,0.1), 0 2px 1px rgba(0,0,0,0.08);
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s ease;
+}
+input[type=range].apple-pro-slider::-webkit-slider-thumb:active {
+  transform: scale(1.15);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.12);
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.advanced-panel {
+  animation: slideDown 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.liquid-bg-anim {
+  animation: liquidShift 25s ease-in-out infinite alternate;
+}
+
+@keyframes liquidShift {
+  0% { transform: scale(1.1) translate(0, 0) rotate(0deg); }
+  50% { transform: scale(1.3) translate(-2%, 2%) rotate(3deg); }
+  100% { transform: scale(1.1) translate(2%, -2%) rotate(-3deg); }
 }
