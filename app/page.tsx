@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, ChangeEvent } from 'react';
+import React, { useState, useRef, useEffect, ChangeEvent } from 'react';
 import { toJpeg } from 'html-to-image';
 
 const APPLE_PRESETS: string[] = [
@@ -99,10 +99,29 @@ export default function CoverArtCreator() {
   const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>('center');
   const [showAppLogo, setShowAppLogo] = useState<boolean>(true);
 
+  const [previewScale, setPreviewScale] = useState<number>(0.166666667);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const artRef = useRef<HTMLDivElement>(null);
 
   const isSpotify = platform === 'spotify';
   const currentPresets = isSpotify ? SPOTIFY_PRESETS : APPLE_PRESETS;
+
+  useEffect(() => {
+    const updateScale = () => {
+      if (wrapperRef.current) {
+        const width = wrapperRef.current.clientWidth;
+        setPreviewScale(width / 3000);
+      }
+    };
+
+    updateScale();
+    const resizeObserver = new ResizeObserver(() => updateScale());
+    if (wrapperRef.current) {
+      resizeObserver.observe(wrapperRef.current);
+    }
+
+    return () => resizeObserver.disconnect();
+  }, []);
 
   const handlePlatformChange = (newPlatform: 'apple' | 'spotify') => {
     setPlatform(newPlatform);
@@ -198,49 +217,111 @@ export default function CoverArtCreator() {
         />
       )}
 
+      <section className="app-preview-section">
+        <div className="preview-wrapper" ref={wrapperRef}>
+          <div className="preview-scaler" style={{ borderRadius: isSpotify ? '0px' : '16px', backgroundColor: '#000' }}>
+            <div ref={artRef} style={{ width: '3000px', height: '3000px', background: bgString, transform: `scale(${previewScale})`, transformOrigin: 'top left', position: 'relative', overflow: 'hidden', fontFamily: isSpotify ? "'Spotify Font 1', sans-serif" : "'SF Pro Custom', sans-serif" }}>
+              
+              {image && (
+                <>
+                  {expandImage && (
+                    <img src={image} alt="blur-bg" style={{ position: 'absolute', top: '-10%', left: '-10%', width: '120%', height: '120%', objectFit: 'cover', filter: 'blur(100px) brightness(0.6)', zIndex: 1 }} />
+                  )}
+                  <img src={image} alt="uploaded" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: expandImage ? 'contain' : 'cover', zIndex: 2 }} />
+                </>
+              )}
+
+              <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 3, opacity: isAdvanced ? grainIntensity / 100 : 0.2, mixBlendMode: 'overlay', transition: 'opacity 0.3s' }}>
+                <filter id="noise">
+                  <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
+                  <feColorMatrix type="matrix" values="1 0 0 0 0, 0 1 0 0 0, 0 0 1 0 0, 0 0 0 0.5 0" />
+                </filter>
+                <rect width="100%" height="100%" filter="url(#noise)"/>
+              </svg>
+
+              {isSpotify ? (
+                <div style={{ 
+                  position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 4, 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  justifyContent: verticalPos === 'top' ? 'flex-start' : (verticalPos === 'bottom' ? 'flex-end' : 'center'),
+                  alignItems: textAlign === 'left' ? 'flex-start' : (textAlign === 'right' ? 'flex-end' : 'center'),
+                  padding: '160px', boxSizing: 'border-box'
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', width: '100%', alignItems: textAlign === 'left' ? 'flex-start' : (textAlign === 'right' ? 'flex-end' : 'center') }}>
+                    <h1 style={{ fontFamily: "'Spotify Font 1', sans-serif", fontSize: '420px', margin: 0, fontWeight: 900, color: titleColor, letterSpacing: '-12px', lineHeight: '0.9', textAlign: textAlign, width: '100%' }}>{title}</h1>
+                    {subtitle && (
+                      <h2 style={{ fontFamily: "'Spotify Font 1', sans-serif", fontSize: '180px', margin: '40px 0 0 0', fontWeight: 500, color: subtitleColor, letterSpacing: '-4px', textAlign: textAlign, width: '100%' }}>{subtitle}</h2>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 4, padding: '240px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+                    {showAppLogo && (
+                      <div style={{ height: '280px', width: 'auto', filter: 'drop-shadow(0px 10px 20px rgba(0,0,0,0.3))' }}>
+                        <img src="/images/logo.png" alt="Apple Music" style={{ height: '100%', width: 'auto', objectFit: 'contain' }} />
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <h1 style={{ fontFamily: "'SF Pro Custom', sans-serif", fontSize: '520px', lineHeight: '0.9', margin: 0, fontWeight: 800, color: titleColor, letterSpacing: '-16px' }}>{title}</h1>
+                    {subtitle && (
+                      <h2 style={{ fontFamily: "'SF Pro Custom', sans-serif", fontSize: '480px', lineHeight: '0.9', margin: '20px 0 0 0', fontWeight: 500, color: subtitleColor, letterSpacing: '-12px', opacity: 0.95 }}>{subtitle}</h2>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+            </div>
+          </div>
+        </div>
+      </section>
+
       <aside className="app-sidebar" style={{ background: theme.sidebar, borderRight: `1px solid ${theme.border}`, boxShadow: theme.sidebarShadow }}>
         
-        <div style={{ marginBottom: '32px' }}>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, letterSpacing: '-0.5px', color: theme.text, margin: 0 }}>
+        <div style={{ marginBottom: '24px' }}>
+          <h1 style={{ fontSize: '22px', fontWeight: 800, letterSpacing: '-0.5px', color: theme.text, margin: 0 }}>
             Playlist Creator
           </h1>
         </div>
 
-        <div style={{ display: 'flex', background: theme.inputBg, padding: '4px', borderRadius: '10px', marginBottom: '32px', border: `1px solid ${theme.border}` }}>
+        <div style={{ display: 'flex', background: theme.inputBg, padding: '4px', borderRadius: '10px', marginBottom: '24px', border: `1px solid ${theme.border}` }}>
           <button 
             onClick={() => handlePlatformChange('apple')}
-            style={{ flex: 1, padding: '8px 0', borderRadius: '6px', border: 'none', background: !isSpotify ? '#fff' : 'transparent', color: !isSpotify ? theme.text : theme.textSecondary, boxShadow: !isSpotify ? '0 2px 4px rgba(0,0,0,0.05), 0 1px 1px rgba(0,0,0,0.05)' : 'none', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)' }}
+            style={{ flex: 1, padding: '10px 0', borderRadius: '6px', border: 'none', background: !isSpotify ? '#fff' : 'transparent', color: !isSpotify ? theme.text : theme.textSecondary, boxShadow: !isSpotify ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
           >
             Apple Music
           </button>
           <button 
             onClick={() => handlePlatformChange('spotify')}
-            style={{ flex: 1, padding: '8px 0', borderRadius: '6px', border: 'none', background: isSpotify ? '#333' : 'transparent', color: isSpotify ? '#fff' : theme.textSecondary, boxShadow: isSpotify ? '0 2px 4px rgba(0,0,0,0.2)' : 'none', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)' }}
+            style={{ flex: 1, padding: '10px 0', borderRadius: '6px', border: 'none', background: isSpotify ? '#333' : 'transparent', color: isSpotify ? '#fff' : theme.textSecondary, boxShadow: isSpotify ? '0 2px 4px rgba(0,0,0,0.2)' : 'none', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
           >
             Spotify
           </button>
         </div>
         
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', flex: 1 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
           
           <div>
             <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: theme.textSecondary, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Textos da Capa</span>
             <div style={{ background: theme.inputBg, borderRadius: '12px', overflow: 'hidden', border: `1px solid ${theme.border}` }}>
-              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Título principal" style={{ width: '100%', padding: '16px', border: 'none', borderBottom: `1px solid ${theme.border}`, fontSize: '15px', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', color: theme.text, background: 'transparent' }} />
-              <input type="text" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="Subtítulo opcional" style={{ width: '100%', padding: '16px', border: 'none', fontSize: '15px', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', color: theme.text, background: 'transparent' }} />
+              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Título principal" style={{ width: '100%', padding: '14px 16px', border: 'none', borderBottom: `1px solid ${theme.border}`, fontSize: '15px', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', color: theme.text, background: 'transparent' }} />
+              <input type="text" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="Subtítulo opcional" style={{ width: '100%', padding: '14px 16px', border: 'none', fontSize: '15px', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', color: theme.text, background: 'transparent' }} />
             </div>
           </div>
 
           <div>
             <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: theme.textSecondary, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Fundo Predefinido</span>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px' }}>
               {currentPresets.map((preset, index) => (
                 <div key={index} style={{ display: 'flex', justifyContent: 'center' }}>
                   <button
                     onClick={() => handlePresetSelect(preset, index)}
                     style={{
-                      width: '44px',
-                      height: '44px',
+                      width: '40px',
+                      height: '40px',
                       borderRadius: '50%',
                       background: preset,
                       border: 'none',
@@ -249,7 +330,6 @@ export default function CoverArtCreator() {
                       boxShadow: activePresetIndex === index && !image
                         ? (isSpotify ? `0 0 0 2px ${theme.sidebar}, 0 0 0 4px ${theme.accent}` : `0 0 0 2px #fff, 0 0 0 4px ${theme.accent}`)
                         : '0 2px 4px rgba(0,0,0,0.1)',
-                      transition: 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s',
                       transform: activePresetIndex === index && !image ? 'scale(1.05)' : 'scale(1)'
                     }}
                   />
@@ -258,13 +338,13 @@ export default function CoverArtCreator() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: `1px solid ${theme.border}`, paddingTop: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: `1px solid ${theme.border}`, paddingTop: '16px' }}>
             <span style={{ fontSize: '15px', fontWeight: 600, color: theme.text }}>Criação Avançada</span>
             <button 
               onClick={() => setIsAdvanced(!isAdvanced)}
-              style={{ width: '51px', height: '31px', borderRadius: '16px', background: isAdvanced ? theme.accent : theme.trackEmpty, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.3s', padding: 0 }}
+              style={{ width: '51px', height: '31px', borderRadius: '16px', background: isAdvanced ? theme.accent : theme.trackEmpty, border: 'none', cursor: 'pointer', position: 'relative', padding: 0 }}
             >
-              <div style={{ width: '27px', height: '27px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: isAdvanced ? '22px' : '2px', transition: 'left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)', boxShadow: '0 3px 8px rgba(0,0,0,0.15), 0 1px 1px rgba(0,0,0,0.16)' }} />
+              <div style={{ width: '27px', height: '27px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: isAdvanced ? '22px' : '2px', transition: 'left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)' }} />
             </button>
           </div>
 
@@ -273,36 +353,36 @@ export default function CoverArtCreator() {
               
               <div>
                 <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: theme.textSecondary, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Detalhes & Cores</span>
-                <div style={{ background: theme.inputBg, borderRadius: '12px', border: `1px solid ${theme.border}`, boxShadow: theme.inputShadow }}>
+                <div style={{ background: theme.inputBg, borderRadius: '12px', border: `1px solid ${theme.border}` }}>
                   {!isSpotify && (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: `1px solid ${theme.border}` }}>
-                      <span style={{ fontSize: '15px', color: theme.text }}>Mostrar Logo na Capa</span>
+                      <span style={{ fontSize: '14px', color: theme.text }}>Mostrar Logo na Capa</span>
                       <button 
                         onClick={() => setShowAppLogo(!showAppLogo)}
-                        style={{ width: '51px', height: '31px', borderRadius: '16px', background: showAppLogo ? theme.accent : theme.trackEmpty, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.3s', padding: 0 }}
+                        style={{ width: '51px', height: '31px', borderRadius: '16px', background: showAppLogo ? theme.accent : theme.trackEmpty, border: 'none', cursor: 'pointer', position: 'relative', padding: 0 }}
                       >
-                        <div style={{ width: '27px', height: '27px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: showAppLogo ? '22px' : '2px', transition: 'left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)', boxShadow: '0 3px 8px rgba(0,0,0,0.15), 0 1px 1px rgba(0,0,0,0.16)' }} />
+                        <div style={{ width: '27px', height: '27px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: showAppLogo ? '22px' : '2px', transition: 'left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)' }} />
                       </button>
                     </div>
                   )}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: `1px solid ${theme.border}` }}>
-                    <span style={{ fontSize: '15px', color: theme.text }}>Cor do Título</span>
+                    <span style={{ fontSize: '14px', color: theme.text }}>Cor do Título</span>
                     <input type="color" value={titleColor} onChange={(e) => setTitleColor(e.target.value)} />
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: `1px solid ${theme.border}` }}>
-                    <span style={{ fontSize: '15px', color: theme.text }}>Cor do Subtítulo</span>
+                    <span style={{ fontSize: '14px', color: theme.text }}>Cor do Subtítulo</span>
                     <input type="color" value={subtitleColor} onChange={(e) => setSubtitleColor(e.target.value)} />
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: `1px solid ${theme.border}` }}>
-                    <span style={{ fontSize: '15px', color: theme.text }}>Cor Destaque</span>
+                    <span style={{ fontSize: '14px', color: theme.text }}>Cor Destaque</span>
                     <input type="color" value={color1} onChange={(e) => handleCustomColorChange(e.target.value, color2, color3)} />
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: `1px solid ${theme.border}` }}>
-                    <span style={{ fontSize: '15px', color: theme.text }}>Cor Acento</span>
+                    <span style={{ fontSize: '14px', color: theme.text }}>Cor Acento</span>
                     <input type="color" value={color2} onChange={(e) => handleCustomColorChange(color1, e.target.value, color3)} />
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px' }}>
-                    <span style={{ fontSize: '15px', color: theme.text }}>Cor Base</span>
+                    <span style={{ fontSize: '14px', color: theme.text }}>Cor Base</span>
                     <input type="color" value={color3} onChange={(e) => handleCustomColorChange(color1, color2, e.target.value)} />
                   </div>
                 </div>
@@ -311,28 +391,28 @@ export default function CoverArtCreator() {
               <div>
                 <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: theme.textSecondary, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Imagem de Fundo</span>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <label style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', background: image ? theme.inputBg : (isSpotify ? '#333' : '#fff'), color: image ? theme.text : (isSpotify ? '#fff' : '#000'), padding: '14px', borderRadius: '12px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', border: `1px solid ${theme.border}`, transition: 'all 0.2s', boxShadow: image ? theme.inputShadow : (isSpotify ? 'none' : '0 2px 8px rgba(0,0,0,0.05)') }}>
+                  <label style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', background: image ? theme.inputBg : (isSpotify ? '#333' : '#fff'), color: image ? theme.text : (isSpotify ? '#fff' : '#000'), padding: '12px', borderRadius: '12px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', border: `1px solid ${theme.border}` }}>
                     <input type="file" accept="image/*" onChange={handleImageUpload} hidden />
                     {image ? 'Trocar Imagem' : 'Fazer Upload'}
                   </label>
                   {image && (
-                    <button onClick={handleRemoveImage} style={{ padding: '14px 16px', borderRadius: '12px', background: '#ff3b30', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '14px', boxShadow: '0 4px 12px rgba(255, 59, 48, 0.2)' }}>
+                    <button onClick={handleRemoveImage} style={{ padding: '12px 16px', borderRadius: '12px', background: '#ff3b30', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}>
                       Remover
                     </button>
                   )}
                 </div>
 
                 {image && (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', background: theme.inputBg, borderRadius: '12px', marginTop: '12px', border: `1px solid ${theme.border}`, boxShadow: theme.inputShadow }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: theme.inputBg, borderRadius: '12px', marginTop: '12px', border: `1px solid ${theme.border}` }}>
                     <div>
-                      <span style={{ fontSize: '15px', color: theme.text, display: 'block', fontWeight: 600 }}>Estender Cenário</span>
-                      <span style={{ fontSize: '12px', color: theme.textSecondary }}>Simula preenchimento espacial</span>
+                      <span style={{ fontSize: '14px', color: theme.text, display: 'block', fontWeight: 600 }}>Estender Cenário</span>
+                      <span style={{ fontSize: '11px', color: theme.textSecondary }}>Simula preenchimento espacial</span>
                     </div>
                     <button 
                       onClick={() => setExpandImage(!expandImage)}
-                      style={{ width: '51px', height: '31px', borderRadius: '16px', background: expandImage ? theme.accent : theme.trackEmpty, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.3s', padding: 0 }}
+                      style={{ width: '51px', height: '31px', borderRadius: '16px', background: expandImage ? theme.accent : theme.trackEmpty, border: 'none', cursor: 'pointer', position: 'relative', padding: 0 }}
                     >
-                      <div style={{ width: '27px', height: '27px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: expandImage ? '22px' : '2px', transition: 'left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)', boxShadow: '0 3px 8px rgba(0,0,0,0.15), 0 1px 1px rgba(0,0,0,0.16)' }} />
+                      <div style={{ width: '27px', height: '27px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: expandImage ? '22px' : '2px', transition: 'left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)' }} />
                     </button>
                   </div>
                 )}
@@ -342,25 +422,24 @@ export default function CoverArtCreator() {
                 <div>
                   <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: theme.textSecondary, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Configuração do Texto</span>
                   <div style={{ background: theme.inputBg, borderRadius: '12px', border: `1px solid ${theme.border}` }}>
-                    
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: `1px solid ${theme.border}` }}>
-                      <span style={{ fontSize: '15px', color: theme.text }}>Posição Vertical</span>
+                      <span style={{ fontSize: '14px', color: theme.text }}>Posição Vertical</span>
                       <div style={{ display: 'flex', background: theme.trackEmpty, borderRadius: '6px', padding: '2px' }}>
                         <button 
                           onClick={() => setVerticalPos('top')}
-                          style={{ padding: '4px 10px', borderRadius: '4px', border: 'none', background: verticalPos === 'top' ? '#444' : 'transparent', color: verticalPos === 'top' ? '#fff' : '#aaa', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                          style={{ padding: '4px 8px', borderRadius: '4px', border: 'none', background: verticalPos === 'top' ? '#444' : 'transparent', color: verticalPos === 'top' ? '#fff' : '#aaa', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
                         >
                           Topo
                         </button>
                         <button 
                           onClick={() => setVerticalPos('center')}
-                          style={{ padding: '4px 10px', borderRadius: '4px', border: 'none', background: verticalPos === 'center' ? '#444' : 'transparent', color: verticalPos === 'center' ? '#fff' : '#aaa', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                          style={{ padding: '4px 8px', borderRadius: '4px', border: 'none', background: verticalPos === 'center' ? '#444' : 'transparent', color: verticalPos === 'center' ? '#fff' : '#aaa', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
                         >
                           Meio
                         </button>
                         <button 
                           onClick={() => setVerticalPos('bottom')}
-                          style={{ padding: '4px 10px', borderRadius: '4px', border: 'none', background: verticalPos === 'bottom' ? '#444' : 'transparent', color: verticalPos === 'bottom' ? '#fff' : '#aaa', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                          style={{ padding: '4px 8px', borderRadius: '4px', border: 'none', background: verticalPos === 'bottom' ? '#444' : 'transparent', color: verticalPos === 'bottom' ? '#fff' : '#aaa', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
                         >
                           Base
                         </button>
@@ -368,7 +447,7 @@ export default function CoverArtCreator() {
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px' }}>
-                      <span style={{ fontSize: '15px', color: theme.text }}>Alinhamento</span>
+                      <span style={{ fontSize: '14px', color: theme.text }}>Alinhamento</span>
                       <div style={{ display: 'flex', background: theme.trackEmpty, borderRadius: '8px', padding: '4px', gap: '4px' }}>
                         <button 
                           onClick={() => setTextAlign('left')}
@@ -390,14 +469,13 @@ export default function CoverArtCreator() {
                         </button>
                       </div>
                     </div>
-
                   </div>
                 </div>
               )}
 
               <div>
                 <span style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: theme.textSecondary, marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filtro de Granulação</span>
-                <div style={{ padding: '12px 0' }}>
+                <div style={{ padding: '8px 0' }}>
                   <input 
                     type="range" 
                     min="0" max="100" 
@@ -406,7 +484,7 @@ export default function CoverArtCreator() {
                     className="apple-pro-slider"
                     style={{ background: `linear-gradient(to right, ${theme.accent} 0%, ${theme.accent} ${grainIntensity}%, ${theme.trackEmpty} ${grainIntensity}%, ${theme.trackEmpty} 100%)` }}
                   />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px', fontSize: '11px', color: theme.textSecondary, fontWeight: 500 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', fontSize: '11px', color: theme.textSecondary, fontWeight: 500 }}>
                     <span>Limpo</span>
                     <span>Analógico</span>
                   </div>
@@ -419,74 +497,11 @@ export default function CoverArtCreator() {
 
         <button 
           onClick={handleDownload}
-          style={{ width: '100%', padding: '16px', background: isSpotify ? '#1DB954' : '#000', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '16px', fontWeight: 600, fontFamily: 'inherit', marginTop: '24px', transition: 'all 0.2s', boxShadow: isSpotify ? 'none' : '0 4px 12px rgba(0,0,0,0.15)' }}
-          onMouseOver={(e) => e.currentTarget.style.transform = 'scale(0.98)'}
-          onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          style={{ width: '100%', padding: '16px', background: isSpotify ? '#1DB954' : '#000', color: '#fff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '16px', fontWeight: 600, fontFamily: 'inherit', marginTop: '20px' }}
         >
           Exportar Capa
         </button>
       </aside>
-
-      <section className="app-preview-section">
-        <div className="preview-scaler" style={{ boxShadow: '0 30px 60px rgba(0,0,0,0.3)', borderRadius: isSpotify ? '0px' : '24px', backgroundColor: '#000' }}>
-          
-          <div ref={artRef} style={{ width: '3000px', height: '3000px', background: bgString, transform: 'scale(0.166666667)', transformOrigin: 'top left', position: 'relative', overflow: 'hidden', fontFamily: isSpotify ? "'Spotify Font 1', sans-serif" : "'SF Pro Custom', sans-serif" }}>
-            
-            {image && (
-              <>
-                {expandImage && (
-                  <img src={image} alt="blur-bg" style={{ position: 'absolute', top: '-10%', left: '-10%', width: '120%', height: '120%', objectFit: 'cover', filter: 'blur(100px) brightness(0.6)', zIndex: 1 }} />
-                )}
-                <img src={image} alt="uploaded" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: expandImage ? 'contain' : 'cover', zIndex: 2 }} />
-              </>
-            )}
-
-            <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 3, opacity: isAdvanced ? grainIntensity / 100 : 0.2, mixBlendMode: 'overlay', transition: 'opacity 0.3s' }}>
-              <filter id="noise">
-                <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
-                <feColorMatrix type="matrix" values="1 0 0 0 0, 0 1 0 0 0, 0 0 1 0 0, 0 0 0 0.5 0" />
-              </filter>
-              <rect width="100%" height="100%" filter="url(#noise)"/>
-            </svg>
-
-            {isSpotify ? (
-              <div style={{ 
-                position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 4, 
-                display: 'flex', 
-                flexDirection: 'column', 
-                justifyContent: verticalPos === 'top' ? 'flex-start' : (verticalPos === 'bottom' ? 'flex-end' : 'center'),
-                alignItems: textAlign === 'left' ? 'flex-start' : (textAlign === 'right' ? 'flex-end' : 'center'),
-                padding: '160px', boxSizing: 'border-box'
-              }}>
-                <div style={{ display: 'flex', flexDirection: 'column', width: '100%', alignItems: textAlign === 'left' ? 'flex-start' : (textAlign === 'right' ? 'flex-end' : 'center') }}>
-                  <h1 style={{ fontFamily: "'Spotify Font 1', sans-serif", fontSize: '420px', margin: 0, fontWeight: 900, color: titleColor, letterSpacing: '-12px', lineHeight: '0.9', textAlign: textAlign, width: '100%' }}>{title}</h1>
-                  {subtitle && (
-                    <h2 style={{ fontFamily: "'Spotify Font 1', sans-serif", fontSize: '180px', margin: '40px 0 0 0', fontWeight: 500, color: subtitleColor, letterSpacing: '-4px', textAlign: textAlign, width: '100%' }}>{subtitle}</h2>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 4, padding: '240px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
-                  {showAppLogo && (
-                    <div style={{ height: '240px', width: 'auto', filter: 'drop-shadow(0px 0px 2px rgba(0,0,0,0.3))' }}>
-                      <img src="/images/logo2.png" alt="Apple Music" style={{ height: '100%', width: 'auto', objectFit: 'contain' }} />
-                    </div>
-                  )}
-                </div>
-                
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <h1 style={{ fontFamily: "'SF Pro Custom', sans-serif", fontSize: '520px', lineHeight: '0.9', margin: 0, fontWeight: 800, color: titleColor, letterSpacing: '-16px' }}>{title}</h1>
-                  {subtitle && (
-                    <h2 style={{ fontFamily: "'SF Pro Custom', sans-serif", fontSize: '480px', lineHeight: '0.9', margin: '20px 0 0 0', fontWeight: 500, color: subtitleColor, letterSpacing: '-12px', opacity: 0.95 }}>{subtitle}</h2>
-                  )}
-                </div>
-              </div>
-            )}
-            
-          </div>
-        </div>
-      </section>
     </main>
   );
 }
